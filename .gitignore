@@ -1,0 +1,11 @@
+**/terraform.tfvars
+**/terraform.tfstate
+**/terraform.tfstate.backup
+**/terraform.tfplan
+**/.terraform/**
+**/crash.log
+**/*.tfplan
+debuglog.txt
+**/terraform_plugins/**
+**/.vscode/**
+**/*.key
