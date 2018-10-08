@@ -39,3 +39,6 @@ module "vpc" {
   }
 }
 
+#Create an elastic IP
+
+resource "aws_eip" "rras-eip" {}

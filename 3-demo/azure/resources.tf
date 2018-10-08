@@ -33,3 +33,5 @@ module "vnet" {
                             environment = "vdc"
                           }
 }
+
+#Create Azure VNG

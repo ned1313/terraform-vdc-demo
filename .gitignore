@@ -9,3 +9,5 @@ debuglog.txt
 **/terraform_plugins/**
 **/.vscode/**
 **/*.key
+**/*.pem
+**/.terraform.tfstate.lock.info
