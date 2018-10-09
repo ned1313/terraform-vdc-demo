@@ -4,27 +4,18 @@
 
 #AWS Variables
 variable "aws_access_key" {}
+
 variable "aws_secret_key" {}
-variable "aws_network_address_space" {
-  default = "10.1.0.0/16"
-}
-variable "aws_subnet1_address_space" {
-  default = "10.1.0.0/24"
-}
-variable "aws_subnet2_address_space" {
-  default = "10.1.1.0/24"
-}
-
-variable "aws_subnet_count" {
-  default = "2"
-}
-
 variable "aws_key_file_path" {}
+variable "aws_key_name" {}
 
-variable "aws_key_name" {
-  
+variable "network_remote_state_bucket" {
+  default = "vpcdemo10112018-remotestate"
 }
 
+variable "network_remote_state_key" {
+  default = "2-demo.state"
+}
 
 # Azure Variables
 variable "arm_subscription" {}
@@ -38,26 +29,13 @@ variable "arm_region" {
 }
 
 variable "arm_resource_group_name" {
-    default = "vdc10112018"
-}
-variable "arm_network_address_space" {
-  default = "10.2.0.0/16"
-}
-variable "arm_subnet1_address_space" {
-  default = "10.2.0.0/24"
-}
-variable "arm_subnet2_address_space" {
-  default = "10.2.1.0/24"
-}
-
-variable "arm_subnet_count" {
-  default = "2"
+  default = "vdc10112018"
 }
 
 #VPN variables
 variable "vpn_shared_secret" {}
 
 #Local variables
-
-
-
+locals {
+  workspace_key = "env:/${terraform.workspace}/${var.network_remote_state_key}"
+}

@@ -8,6 +8,13 @@ provider "aws" {
   region     = "us-east-1"
 }
 
+provider "azurerm" {
+  subscription_id = "${var.arm_subscription}"
+  client_id = "${var.arm_appId}"
+  client_secret     = "${var.arm_password}"
+  tenant_id = "${var.arm_tenant}"
+}
+
 ##################################################################################
 # DATA
 ##################################################################################
@@ -23,10 +30,10 @@ module "vpc" {
   source = "terraform-aws-modules/vpc/aws"
   name = "Terraform-${terraform.workspace}"
 
-  cidr = "${var.network_address_space}"
-  azs = "${slice(data.aws_availability_zones.available.names,0,var.subnet_count)}"
-  private_subnets = ["${var.subnet1_address_space}"]
-  public_subnets = ["${var.subnet2_address_space}"]
+  cidr = "${var.aws_network_address_space}"
+  azs = "${slice(data.aws_availability_zones.available.names,0,var.aws_subnet_count)}"
+  private_subnets = ["${var.aws_subnet1_address_space}"]
+  public_subnets = ["${var.aws_subnet2_address_space}"]
 
   enable_nat_gateway = false
 
@@ -39,3 +46,23 @@ module "vpc" {
   }
 }
 
+resource "azurerm_resource_group" "rg" {
+  name = "${var.arm_resource_group_name}"
+  location = "${var.arm_region}"
+}
+
+
+# NETWORKING #
+module "vnet" {
+    source              = "Azure/network/azurerm"
+    resource_group_name = "${var.arm_resource_group_name}"
+    vnet_name = "Terraform-${terraform.workspace}"
+    location            = "${var.arm_region}"
+    address_space       = "${var.arm_network_address_space}"
+    subnet_prefixes     = ["${var.arm_subnet1_address_space}","${var.arm_subnet2_address_space}"]
+    subnet_names        = ["subnet1", "subnet2"]
+
+    tags                = {
+                            environment = "vdc"
+                          }
+}
