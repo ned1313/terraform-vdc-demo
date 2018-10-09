@@ -26,8 +26,11 @@ data "template_file" "ec2-rras-script" {
   vars {
     RemoteIPAddress = "${azurerm_public_ip.vng-pip.ip_address}"
     RemoteSubnet    = "${data.terraform_remote_state.network.vnet_cidr[0]}"
+    RemoteName = "${azurerm_virtual_network_gateway.vng.id}"
     ShareSecret     = "${var.vpn_shared_secret}"
   }
+
+
 }
 
 #Get Windows Server 2012R2 AMI
@@ -69,7 +72,7 @@ resource "azurerm_public_ip" "vng-pip" {
   name                         = "vdc-${terraform.workspace}-pip"
   location                     = "${var.arm_region}"
   resource_group_name          = "${local.resource_group}"
-  public_ip_address_allocation = "static"
+  public_ip_address_allocation = "dynamic"
 }
 
 #Create VNG subnet
@@ -124,7 +127,7 @@ resource "azurerm_virtual_network_gateway_connection" "azure-aws" {
 
 #Create Winrm SG for Instance
 resource "aws_security_group" "rras-sg" {
-  name = "allow_rdp"
+  name = "${terraform.workspace}_allow_rdp"
   description = "allow rdp from anywhere"
   vpc_id = "${data.terraform_remote_state.network.vpc_id}"
 
@@ -153,6 +156,7 @@ resource "aws_instance" "rras" {
   vpc_security_group_ids = ["${aws_security_group.rras-sg.id}"]
   user_data = "${data.template_file.ec2-rras-script.rendered}"
 
+  depends_on = ["azurerm_virtual_network_gateway.vng"]
 }
 
 resource "aws_eip_association" "rras-eip-assoc" {

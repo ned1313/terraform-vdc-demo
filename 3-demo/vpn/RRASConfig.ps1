@@ -83,4 +83,5 @@ Restart-Service RemoteAccess
 # Dial-in to Azure gateway
 Connect-VpnS2SInterface -Name "${RemoteIPAddress}"
 
+Write-Output "${RemoteName}"
 </powershell>
