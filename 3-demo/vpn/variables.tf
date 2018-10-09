@@ -14,7 +14,7 @@ variable "network_remote_state_bucket" {
 }
 
 variable "network_remote_state_key" {
-  default = "2-demo.state"
+  default = "3-demo-network.state"
 }
 
 # Azure Variables
@@ -32,10 +32,16 @@ variable "arm_resource_group_name" {
   default = "vdc10112018"
 }
 
+variable "arm_gateway_subnet" {
+  default = "10.2.2.0/24"
+}
+
 #VPN variables
 variable "vpn_shared_secret" {}
 
 #Local variables
 locals {
   workspace_key = "env:/${terraform.workspace}/${var.network_remote_state_key}"
+
+  resource_group = "${terraform.workspace}-${var.arm_resource_group_name}"
 }

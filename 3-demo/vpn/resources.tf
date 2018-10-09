@@ -24,7 +24,7 @@ data "template_file" "ec2-rras-script" {
   template = "${file("RRASConfig.ps1")}"
 
   vars {
-    RemoteIPAddress = "1.1.1.1"
+    RemoteIPAddress = "${azurerm_public_ip.vng-pip.ip_address}"
     RemoteSubnet    = "${var.arm_network_address_space}"
     ShareSecret     = "${var.vpn_shared_secret}"
   }
@@ -66,70 +66,64 @@ resource "aws_eip" "rras-eip" {}
 
 #Create PIP
 resource "azurerm_public_ip" "vng-pip" {
-  name                         = "${terraform.workspace}-vdc-pip"
+  name                         = "vdc-${terraform.workspace}-pip"
   location                     = "${var.arm_region}"
-  resource_group_name          = "${var.arm_resource_group_name}"
+  resource_group_name          = "${local.resource_group}"
   public_ip_address_allocation = "dynamic"
 }
 
 #Create VNG subnet
 resource "azurerm_subnet" "vng-subnet" {
-  name                 = "GatewaySubnet"
-  resource_group_name  = "${var.arm_resource_group_name}"
-  virtual_network_name = "${data.terraform_remote_state.network.}"
+  name                 = "vdc-${terraform.workspace}-GatewaySubnet"
+  resource_group_name  = "${local.resource_group}"
+  virtual_network_name = "${data.terraform_remote_state.network.vnet_name}"
   address_prefix       = "${var.arm_gateway_subnet}"
 }
 
 #Create VNG  in Azure
-resource "azurerm_virtual_network_gateway" "test" {
-  name                = "test"
+resource "azurerm_virtual_network_gateway" "vng" {
+  name                = "vdc-${terraform.workspace}-vng"
   location            = "${azurerm_resource_group.test.location}"
-  resource_group_name = "${azurerm_resource_group.test.name}"
+  resource_group_name = "${local.resource_group}"
 
   type     = "Vpn"
   vpn_type = "RouteBased"
 
   active_active = false
   enable_bgp    = false
-  sku           = "Basic"
+  sku           = "VpnGw1"
 
   ip_configuration {
     name                          = "vnetGatewayConfig"
-    public_ip_address_id          = "${azurerm_public_ip.test.id}"
+    public_ip_address_id          = "${azurerm_public_ip.vng-pip.id}"
     private_ip_address_allocation = "Dynamic"
-    subnet_id                     = "${azurerm_subnet.test.id}"
+    subnet_id                     = "${azurerm_subnet.vng-subnet.id}"
   }
+}
 
-resource "azurerm_local_network_gateway" "onpremise" {
-  name                = "onpremise"
-  location            = "${azurerm_resource_group.test.location}"
-  resource_group_name = "${azurerm_resource_group.test.name}"
-  gateway_address     = "168.62.225.23"
-  address_space       = ["10.1.1.0/24"]
+resource "azurerm_local_network_gateway" "aws" {
+  name                = "aws"
+  location            = "${var.arm_region}"
+  resource_group_name = "${local.resource_group}"
+  gateway_address     = "${aws_eip.public_ip}"
+  address_space       = ["${data.terraform_remote_state.network.vpc_cidr}"]
 }
 
 #Create VNG Connection
-resource "azurerm_virtual_network_gateway_connection" "onpremise" {
-  name                = "onpremise"
-  location            = "${azurerm_resource_group.test.location}"
-  resource_group_name = "${azurerm_resource_group.test.name}"
+resource "azurerm_virtual_network_gateway_connection" "azure-aws" {
+  name                = "azure-aws"
+  location            = "${var.arm_region}"
+  resource_group_name = "${local.resource_group}"
 
   type                       = "IPsec"
-  virtual_network_gateway_id = "${azurerm_virtual_network_gateway.test.id}"
-  local_network_gateway_id   = "${azurerm_local_network_gateway.onpremise.id}"
+  virtual_network_gateway_id = "${azurerm_virtual_network_gateway.vng.id}"
+  local_network_gateway_id   = "${azurerm_local_network_gateway.aws.id}"
 
-  shared_key = "4-v3ry-53cr37-1p53c-5h4r3d-k3y"
+  shared_key = "${var.vpn_shared_secret}"
 }
 
 #Create Winrm SG for Instance
 resource "aws_security_group" "rras-sg" {
-  # WinRM access from anywhere
-  ingress {
-    from_port   = 5985
-    to_port     = 5986
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
 
   ingress {
     from_port   = 3389
@@ -152,30 +146,10 @@ resource "aws_instance" "rras" {
   ami           = "${data.aws_ami.w2012r2.image_id}"
   instance_type = "t2.micro"
   key_name      = "${var.aws_key_name}"
-  subnet_id     = "${module.aws_vpc.public_subnet}"
+  subnet_id     = "${data.terraform_remote_state.network.vpc_public_subnets[0]}"
 
-  get_password_data = true
+  user_data = "${data.template_file.ec2-rras-script.rendered}"
 
-  connection {
-    type     = "winrm"
-    user     = "Administrator"
-    password = "${rsadecrypt(self.password_data, file(var.aws_key_file_path))}"
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "${data.template_file.ec2-rras-script.rendered}",
-    ]
-  }
-
-  user_data = <<EOF
-<script>
-  winrm quickconfig -q & winrm set winrm/config @{MaxTimeoutms="1800000"} & winrm set winrm/config/service @{AllowUnencrypted="true"} & winrm set winrm/config/service/auth @{Basic="true"}
-</script>
-<powershell>
-  netsh advfirewall firewall add rule name="WinRM in" protocol=TCP dir=in profile=any localport=5985 remoteip=any localip=any action=allow
-</powershell>
-EOF
 }
 
 resource "aws_eip_association" "rras-eip-assoc" {
