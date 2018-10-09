@@ -1,0 +1,15 @@
+aws_network_address_space = "10.10.0.0/16"
+
+aws_subnet1_address_space = "10.10.0.0/24"
+
+aws_subnet2_address_space = "10.10.1.0/24"
+
+aws_subnet_count = "2"
+
+arm_network_address_space = "10.11.0.0/16"
+
+arm_subnet1_address_space = "10.11.0.0/24"
+
+arm_subnet2_address_space = "10.11.1.0/24"
+
+arm_subnet_count = "2"
