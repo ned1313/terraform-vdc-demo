@@ -12,8 +12,8 @@ pipeline {
         PATH = "$TF_HOME:$PATH"
         DYNAMODB_STATELOCK = "vpcdemo10112018-tfstatelock"
         NETWORKING_BUCKET = "vpcdemo10112018-remotestate"
-        NETWORKING_ACCESS_KEY = credentials('networking_access_key')
-        NETWORKING_SECRET_KEY = credentials('networking_secret_key')
+        NETWORKING_ACCESS_KEY = credentials('aws_access_key')
+        NETWORKING_SECRET_KEY = credentials('aws_secret_key')
         ARM_SUBSCRIPTION_ID = credentials('arm_subscription')
         WORKING_DIR = "4-demo/"
         VAR_FILE_NAME = "terraform.jenkins"
