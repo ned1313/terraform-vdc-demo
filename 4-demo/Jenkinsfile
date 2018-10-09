@@ -15,7 +15,7 @@ pipeline {
         NETWORKING_ACCESS_KEY = credentials('aws_access_key')
         NETWORKING_SECRET_KEY = credentials('aws_secret_key')
         ARM_SUBSCRIPTION_ID = credentials('arm_subscription')
-        WORKING_DIR = "4-demo/"
+        ARM_TENANT_ID = credentials('arm_tenant_id')
         VAR_FILE_NAME = "terraform.jenkins"
     }
     stages {
