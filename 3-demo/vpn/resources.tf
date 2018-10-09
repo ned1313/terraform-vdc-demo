@@ -24,9 +24,9 @@ data "template_file" "ec2-rras-script" {
   template = "${file("RRASConfig.ps1")}"
 
   vars {
-    RemoteIPAddress = "${azurerm_public_ip.vng-pip.ip_address}"
+    RemoteIPAddress = "${module.azurerm_vng_complete.vng_pip}"
     RemoteSubnet    = "${data.terraform_remote_state.network.vnet_cidr[0]}"
-    RemoteName = "${azurerm_virtual_network_gateway.vng.id}"
+    RemoteName = "${module.azurerm_vng_complete.vng_id}"
     ShareSecret     = "${var.vpn_shared_secret}"
   }
 
@@ -67,41 +67,18 @@ data "terraform_remote_state" "network" {
 #Create EIP
 resource "aws_eip" "rras-eip" {}
 
-#Create PIP
-resource "azurerm_public_ip" "vng-pip" {
-  name                         = "vdc-${terraform.workspace}-pip"
-  location                     = "${var.arm_region}"
-  resource_group_name          = "${local.resource_group}"
-  public_ip_address_allocation = "dynamic"
-}
+module "azurerm_vng_complete" {
+  source = ".\\azurerm_vng_complete"
 
-#Create VNG subnet
-resource "azurerm_subnet" "vng-subnet" {
-  name                 = "GatewaySubnet"
-  resource_group_name  = "${local.resource_group}"
-  virtual_network_name = "${data.terraform_remote_state.network.vnet_name}"
-  address_prefix       = "${var.arm_gateway_subnet}"
-}
+  arm_subscription = "${var.arm_subscription}"
+  arm_appId = "${var.arm_appId}"
+  arm_tenant = "${var.arm_tenant}"
+  arm_password = "${var.arm_password}"
+  arm_region = "${var.arm_region}"
+  arm_resource_group_name = "${local.resource_group}"
+  arm_vnet_name = "${data.terraform_remote_state.network.vnet_name}"
 
-#Create VNG  in Azure
-resource "azurerm_virtual_network_gateway" "vng" {
-  name                = "vdc-${terraform.workspace}-vng"
-  location            = "${var.arm_region}"
-  resource_group_name = "${local.resource_group}"
-
-  type     = "Vpn"
-  vpn_type = "RouteBased"
-
-  active_active = false
-  enable_bgp    = false
-  sku           = "VpnGw1"
-
-  ip_configuration {
-    name                          = "vnetGatewayConfig"
-    public_ip_address_id          = "${azurerm_public_ip.vng-pip.id}"
-    private_ip_address_allocation = "Dynamic"
-    subnet_id                     = "${azurerm_subnet.vng-subnet.id}"
-  }
+  
 }
 
 resource "azurerm_local_network_gateway" "aws" {
@@ -119,7 +96,7 @@ resource "azurerm_virtual_network_gateway_connection" "azure-aws" {
   resource_group_name = "${local.resource_group}"
 
   type                       = "IPsec"
-  virtual_network_gateway_id = "${azurerm_virtual_network_gateway.vng.id}"
+  virtual_network_gateway_id = "${module.azurerm_vng_complete.vng_id}"
   local_network_gateway_id   = "${azurerm_local_network_gateway.aws.id}"
 
   shared_key = "${var.vpn_shared_secret}"
@@ -156,7 +133,6 @@ resource "aws_instance" "rras" {
   vpc_security_group_ids = ["${aws_security_group.rras-sg.id}"]
   user_data = "${data.template_file.ec2-rras-script.rendered}"
 
-  depends_on = ["azurerm_virtual_network_gateway.vng"]
 }
 
 resource "aws_eip_association" "rras-eip-assoc" {
