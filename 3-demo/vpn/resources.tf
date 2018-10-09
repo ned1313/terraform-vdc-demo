@@ -24,13 +24,11 @@ data "template_file" "ec2-rras-script" {
   template = "${file("RRASConfig.ps1")}"
 
   vars {
-    RemoteIPAddress = "${module.azurerm_vng_complete.vng_pip}"
+    RemoteIPAddress = "${data.azurerm_public_ip.vng-pip.ip_address}"
     RemoteSubnet    = "${data.terraform_remote_state.network.vnet_cidr[0]}"
-    RemoteName = "${module.azurerm_vng_complete.vng_id}"
+    RemoteName      = "${module.azurerm_vng_complete.vng_id}"
     ShareSecret     = "${var.vpn_shared_secret}"
   }
-
-
 }
 
 #Get Windows Server 2012R2 AMI
@@ -61,6 +59,11 @@ data "terraform_remote_state" "network" {
   }
 }
 
+data "azurerm_public_ip" "vng-pip" {
+  name                = "${module.azurerm_vng_complete.vng_pip_name}"
+  resource_group_name = "${local.resource_group}"
+}
+
 ##################################################################################
 # RESOURCES
 ##################################################################################
@@ -70,15 +73,13 @@ resource "aws_eip" "rras-eip" {}
 module "azurerm_vng_complete" {
   source = ".\\azurerm_vng_complete"
 
-  arm_subscription = "${var.arm_subscription}"
-  arm_appId = "${var.arm_appId}"
-  arm_tenant = "${var.arm_tenant}"
-  arm_password = "${var.arm_password}"
-  arm_region = "${var.arm_region}"
+  arm_subscription        = "${var.arm_subscription}"
+  arm_appId               = "${var.arm_appId}"
+  arm_tenant              = "${var.arm_tenant}"
+  arm_password            = "${var.arm_password}"
+  arm_region              = "${var.arm_region}"
   arm_resource_group_name = "${local.resource_group}"
-  arm_vnet_name = "${data.terraform_remote_state.network.vnet_name}"
-
-  
+  arm_vnet_name           = "${data.terraform_remote_state.network.vnet_name}"
 }
 
 resource "azurerm_local_network_gateway" "aws" {
@@ -104,9 +105,9 @@ resource "azurerm_virtual_network_gateway_connection" "azure-aws" {
 
 #Create Winrm SG for Instance
 resource "aws_security_group" "rras-sg" {
-  name = "${terraform.workspace}_allow_rdp"
+  name        = "${terraform.workspace}_allow_rdp"
   description = "allow rdp from anywhere"
-  vpc_id = "${data.terraform_remote_state.network.vpc_id}"
+  vpc_id      = "${data.terraform_remote_state.network.vpc_id}"
 
   ingress {
     from_port   = 3389
@@ -126,13 +127,12 @@ resource "aws_security_group" "rras-sg" {
 
 #Create EC2 instance for RRAS
 resource "aws_instance" "rras" {
-  ami           = "${data.aws_ami.w2012r2.image_id}"
-  instance_type = "t2.micro"
-  key_name      = "${var.aws_key_name}"
-  subnet_id     = "${data.terraform_remote_state.network.vpc_public_subnets[0]}"
+  ami                    = "${data.aws_ami.w2012r2.image_id}"
+  instance_type          = "t2.micro"
+  key_name               = "${var.aws_key_name}"
+  subnet_id              = "${data.terraform_remote_state.network.vpc_public_subnets[0]}"
   vpc_security_group_ids = ["${aws_security_group.rras-sg.id}"]
-  user_data = "${data.template_file.ec2-rras-script.rendered}"
-
+  user_data              = "${data.template_file.ec2-rras-script.rendered}"
 }
 
 resource "aws_eip_association" "rras-eip-assoc" {

@@ -48,8 +48,3 @@ resource "azurerm_virtual_network_gateway" "vng" {
     subnet_id                     = "${azurerm_subnet.vng-subnet.id}"
   }
 }
-
-data "azurerm_public_ip" "vng-pip" {
-  name = "${azurerm_public_ip.vng-pip.name}"
-  resource_group_name = "${var.arm_resource_group_name}"
-}
