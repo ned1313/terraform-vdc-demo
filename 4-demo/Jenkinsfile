@@ -21,7 +21,7 @@ pipeline {
     stages {
         stage('NetworkInit'){
             steps {
-                dir('$WORKING_DIR'){
+                dir($WORKING_DIR){
                     sh 'terraform --version'
                     sh "terraform init -input=false \
                      --backend-config='dynamodb_table=$DYNAMODB_STATELOCK' --backend-config='bucket=$NETWORKING_BUCKET' \
@@ -33,7 +33,7 @@ pipeline {
         }
         stage('NetworkPlan'){
             steps {
-                dir('$WORKING_DIR'){
+                dir($WORKING_DIR){
                     script {
                         try {
                            sh "terraform workspace new ${params.WORKSPACE}"
@@ -56,14 +56,14 @@ pipeline {
                         apply = true
                     } catch (err) {
                         apply = false
-                        dir('$WORKING_DIR'){
+                        dir($WORKING_DIR){
                             sh "terraform destroy -var 'aws_access_key=$NETWORKING_ACCESS_KEY' \
                              -var-file=$VAR_FILE_NAME -var 'aws_secret_key=$NETWORKING_SECRET_KEY' -force"
                         }
                         currentBuild.result = 'UNSTABLE'
                     }
                     if(apply){
-                        dir('$WORKING_DIR'){
+                        dir($WORKING_DIR){
                             unstash "terraform-networking-plan"
                             sh 'terraform apply terraform-networking.tfplan'
                         }
