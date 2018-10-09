@@ -25,7 +25,7 @@ data "template_file" "ec2-rras-script" {
 
   vars {
     RemoteIPAddress = "${azurerm_public_ip.vng-pip.ip_address}"
-    RemoteSubnet    = "${var.arm_network_address_space}"
+    RemoteSubnet    = "${data.terraform_remote_state.network.vnet_cidr[0]}"
     ShareSecret     = "${var.vpn_shared_secret}"
   }
 }
@@ -69,12 +69,12 @@ resource "azurerm_public_ip" "vng-pip" {
   name                         = "vdc-${terraform.workspace}-pip"
   location                     = "${var.arm_region}"
   resource_group_name          = "${local.resource_group}"
-  public_ip_address_allocation = "dynamic"
+  public_ip_address_allocation = "static"
 }
 
 #Create VNG subnet
 resource "azurerm_subnet" "vng-subnet" {
-  name                 = "vdc-${terraform.workspace}-GatewaySubnet"
+  name                 = "GatewaySubnet"
   resource_group_name  = "${local.resource_group}"
   virtual_network_name = "${data.terraform_remote_state.network.vnet_name}"
   address_prefix       = "${var.arm_gateway_subnet}"
@@ -83,7 +83,7 @@ resource "azurerm_subnet" "vng-subnet" {
 #Create VNG  in Azure
 resource "azurerm_virtual_network_gateway" "vng" {
   name                = "vdc-${terraform.workspace}-vng"
-  location            = "${azurerm_resource_group.test.location}"
+  location            = "${var.arm_region}"
   resource_group_name = "${local.resource_group}"
 
   type     = "Vpn"
@@ -105,7 +105,7 @@ resource "azurerm_local_network_gateway" "aws" {
   name                = "aws"
   location            = "${var.arm_region}"
   resource_group_name = "${local.resource_group}"
-  gateway_address     = "${aws_eip.public_ip}"
+  gateway_address     = "${aws_eip.rras-eip.public_ip}"
   address_space       = ["${data.terraform_remote_state.network.vpc_cidr}"]
 }
 
@@ -124,6 +124,9 @@ resource "azurerm_virtual_network_gateway_connection" "azure-aws" {
 
 #Create Winrm SG for Instance
 resource "aws_security_group" "rras-sg" {
+  name = "allow_rdp"
+  description = "allow rdp from anywhere"
+  vpc_id = "${data.terraform_remote_state.network.vpc_id}"
 
   ingress {
     from_port   = 3389
@@ -147,7 +150,7 @@ resource "aws_instance" "rras" {
   instance_type = "t2.micro"
   key_name      = "${var.aws_key_name}"
   subnet_id     = "${data.terraform_remote_state.network.vpc_public_subnets[0]}"
-
+  vpc_security_group_ids = ["${aws_security_group.rras-sg.id}"]
   user_data = "${data.template_file.ec2-rras-script.rendered}"
 
 }

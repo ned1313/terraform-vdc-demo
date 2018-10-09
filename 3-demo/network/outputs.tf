@@ -18,4 +18,8 @@ output "vpc_public_subnets" {
   value = "${module.vpc.public_subnets}"
 }
 
+output "vnet_cidr" {
+  value = "${module.vnet.vnet_address_space}"
+}
+
 
