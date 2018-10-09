@@ -49,7 +49,7 @@ resource "azurerm_virtual_network_gateway" "vng" {
   }
 }
 
-data "azurerm_public_ip" "vgn-pip" {
+data "azurerm_public_ip" "vng-pip" {
   name = "${azurerm_public_ip.vng-pip.name}"
   resource_group_name = "${var.arm_resource_group_name}"
 }
